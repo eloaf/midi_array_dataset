@@ -8,6 +8,13 @@ from scipy.sparse import save_npz
 from mido import MidiFile
 from glob import glob
 
+
+def first_nonzero(x):
+    for i, e in enumerate(x):
+        if e != 0:
+            return i
+
+
 def compute_note_positions(mid, verbose=False):
     """
     Each message in a MIDI file has a delta time, which tells how many ticks have passed since the last message.
@@ -41,6 +48,7 @@ def compute_note_positions(mid, verbose=False):
     # notes = list(sorted(notes, key=lambda x: x[1]))
     return notes
 
+
 def get_note_array(notes):
     """
     Given a list of midi notes (tuple of (event, current tick, note no.)),
@@ -60,6 +68,14 @@ def get_note_array(notes):
         if event == 'note_off':
             X[tick:, note] = 0
             X_noteoff[tick, note] = 1
+
+    X = X.T
+    X_noteon = X_noteon.T
+    X_noteoff = X_noteoff.T
+
+    X = X[first_nonzero(X.max(axis=0)): ]
+    X_noteon = X_noteon[first_nonzero(X_noteon.max(axis=0)): ]
+    X_noteoff = X_noteoff[first_nonzero(X_noteoff.max(axis=0)): ]
 
     return X, X_noteon, X_noteoff
 
@@ -91,6 +107,8 @@ def midi_files_to_note_arrays(source_path, dest_path):
             sparse_array = csc_matrix(array)
             #np.save(os.path.join(dest_path, fname_array), array)
             save_npz(os.path.join(dest_path, fname_array), sparse_array)
+        except KeyboardInterrupt:
+            break
         except:
             print('Could not process %s' % f)
 
